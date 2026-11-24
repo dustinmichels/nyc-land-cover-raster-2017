@@ -69,7 +69,7 @@ uv sync
 uv run resample.py               # full run, writes out/nyc_landcover_2017_3ft.tif
 
 # alternative sizes
-uv run resample.py 1 3 6         # one pass over the zip, writes the 1, 3 and 6 ft files
+uv run resample.py 2 4 8         # one pass over the zip, writes the 2, 4 and 8 ft files
 uv run resample.py 6 --strips 10 # only the first 10 strips, for testing
 
 # clear outputs
@@ -79,9 +79,9 @@ mise run clear                   # delete everything in out/
 ## Releasing
 
 ```sh
-mise run clear && uv run resample.py 1 3 6 15   # full runs only, see below
-mise run release           # tag vYYYY.MM.DD, auto-bumped to vYYYY.MM.DD.1, .2, … if taken
-mise run release v1.0.0    # explicit tag
+mise run build            # asks to clear out/ (Enter = go, n = cancel), then full 2, 3, 4, 8, 16 ft run
+mise run release          # tag vYYYY.MM.DD, auto-bumped to vYYYY.MM.DD.1, .2, … if taken
+mise run release v1.0.0   # explicit tag
 ```
 
 Rasters are never committed (`out/` is gitignored); they ship only as GitHub release assets (up to 2 GB each). Without an explicit tag, the task fetches tags from `origin` and uses today's `vYYYY.MM.DD`, appending `.1`, `.2`, … if that tag already exists. It sets `version` in the citation below to the tag, commits that change, creates an annotated tag on the new `HEAD`, pushes the branch and tag, then runs `gh release create` with every `out/nyc_landcover_2017_*ft.tif`. If the README can't be updated, it prints a note and releases anyway (tag only). It refuses to run if the working tree is dirty, an explicit tag already exists, `out/` has no rasters, or `gh` is missing or logged out.
