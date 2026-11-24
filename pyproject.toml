@@ -2,11 +2,7 @@
 name = "nyc-land-cover-raster"
 version = "0.1.0"
 requires-python = ">=3.14"
-dependencies = [
-    "numpy>=2.5.5",
-    "rasterio>=1.5.2",
-    "rich>=15.0.0",
-]
+dependencies = ["numpy>=2.5.5", "rasterio>=1.5.2", "rich>=15.0.0"]
 
 [project.scripts]
 resample = "resample:cli"

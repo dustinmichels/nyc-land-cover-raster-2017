@@ -1,27 +1,28 @@
-[tasks.release]
-description = "Tag HEAD and push the tag; the Release workflow publishes out/nyc_landcover_2017_3ft.tif"
-usage = 'arg "[tag]" help="Release tag (default: vYYYY.MM.DD)"'
-run = '''
-#!/usr/bin/env bash
-set -euo pipefail
-file=out/nyc_landcover_2017_3ft.tif
-tag=${usage_tag:-v$(date +%Y.%m.%d)}
+# ─── Tools ───────────────────────────────────────────────────────────────────
 
-[[ -f $file ]] || { echo "error: $file not found; run: mise run resample" >&2; exit 1; }
-git ls-files --error-unmatch "$file" >/dev/null 2>&1 \
-  || { echo "error: $file is not committed; the workflow publishes the committed copy" >&2; exit 1; }
-git diff --quiet HEAD -- "$file" \
-  || { echo "error: $file has uncommitted changes" >&2; exit 1; }
+[tools]
+oxfmt = "latest"
+ruff = "latest"
 
-git tag -a "$tag" -m "Release $tag"
-git push origin "$tag"
-echo "Pushed $tag; the Release workflow will publish $file"
-'''
+# ─── Data ────────────────────────────────────────────────────────────────────
+
+[tasks.resample]
+description = "Resample the 6in land cover to 3ft (pass a strip count to limit)"
+run = "uv run resample"
 
 [tasks.clear]
 description = "Delete everything in out/"
 run = "find out -mindepth 1 -delete 2>/dev/null || true"
 
-[tasks.resample]
-description = "Resample the 6in land cover to 3ft (pass a strip count to limit)"
-run = "uv run resample"
+# ─── Dev ─────────────────────────────────────────────────────────────────────
+
+[tasks.fmt]
+description = "Format files: oxfmt (md/yaml/toml/json) and ruff (Python)"
+run = ["oxfmt", "ruff format"]
+
+# ─── Release ─────────────────────────────────────────────────────────────────
+
+[tasks.release]
+description = "Tag HEAD and push the tag; the Release workflow publishes out/nyc_landcover_2017_3ft.tif"
+usage = 'arg "[tag]" help="Release tag (default: vYYYY.MM.DD)"'
+run = 'scripts/release.sh ${usage_tag:-}'
