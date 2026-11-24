@@ -1,0 +1,20 @@
+[tasks.release]
+description = "Publish out/nyc_landcover_2017_3ft.tif as a GitHub release asset"
+usage = 'arg "[tag]" help="Release tag (default: vYYYY.MM.DD)"'
+run = '''
+#!/usr/bin/env bash
+set -euo pipefail
+file=out/nyc_landcover_2017_3ft.tif
+tag=${usage_tag:-v$(date +%Y.%m.%d)}
+
+[[ -f $file ]] || { echo "error: $file not found; run: uv run resample.py" >&2; exit 1; }
+
+if gh release view "$tag" >/dev/null 2>&1; then
+  echo "Release $tag exists; replacing asset"
+  gh release upload "$tag" "$file" --clobber
+else
+  gh release create "$tag" "$file" \
+    --title "NYC Land Cover 2017, 3 ft ($tag)" \
+    --notes "Majority-resampled (6x6) 3 ft GeoTIFF of the NYC 2017 6-inch land cover raster. EPSG:2263, uint8, nodata=0. See README for class values."
+fi
+'''
