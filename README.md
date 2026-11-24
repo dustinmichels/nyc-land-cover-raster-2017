@@ -97,7 +97,7 @@ If you use this output, please cite it and the source dataset:
   author       = {Michels, Dustin},
   title        = {{NYC Land Cover Raster 2017}: Majority-Resampled {GeoTIFF}s of the 6 in {NYC} Land Cover Dataset},
   year         = {2026},
-  version      = {v2026.11.23},
+  version      = {v2026.11.24},
   howpublished = {\url{https://github.com/dustinmichels/nyc-land-cover-raster-2017}},
   note         = {Derived from NYC Office of Technology and Innovation, Land Cover Raster Data (2017) -- 6in Resolution}
 }
