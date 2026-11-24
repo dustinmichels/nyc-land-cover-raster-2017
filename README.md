@@ -94,7 +94,7 @@ If you use this output, please cite it and the source dataset.
 
 Chicago (bibliography):
 
-> Michels, Dustin. _NYC Land Cover Raster 2017: Majority-Resampled GeoTIFFs of the 6 in NYC Land Cover Dataset_. Version v1.1. GitHub, 2026. https://github.com/dustinmichels/nyc-land-cover-raster-2017.
+> Michels, Dustin. _NYC Land Cover Raster 2017: Majority-Resampled GeoTIFFs of the 6 in NYC Land Cover Dataset_. Version v1.2. GitHub, 2026. https://github.com/dustinmichels/nyc-land-cover-raster-2017.
 >
 > NYC Office of Technology and Innovation (OTI). _Land Cover Raster Data (2017) – 6in Resolution_. Dataset he6d-2qns. NYC Open Data, 2018. https://data.cityofnewyork.us/Environment/Land-Cover-Raster-Data-2017-6in-Resolution/he6d-2qns.
 
@@ -105,7 +105,7 @@ BibTeX:
   author       = {Michels, Dustin},
   title        = {{NYC Land Cover Raster 2017}: Majority-Resampled {GeoTIFF}s of the 6 in {NYC} Land Cover Dataset},
   year         = {2026},
-  version      = {v1.1},
+  version      = {v1.2},
   howpublished = {\url{https://github.com/dustinmichels/nyc-land-cover-raster-2017}},
   note         = {Derived from NYC Office of Technology and Innovation, Land Cover Raster Data (2017) -- 6in Resolution}
 }
