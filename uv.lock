@@ -116,7 +116,7 @@ wheels = [
 [[package]]
 name = "nyc-land-cover-raster"
 version = "0.1.0"
-source = { editable = "." }
+source = { virtual = "." }
 dependencies = [
     { name = "numpy" },
     { name = "rasterio" },

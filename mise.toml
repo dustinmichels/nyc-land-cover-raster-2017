@@ -7,8 +7,8 @@ ruff = "latest"
 # ─── Data ────────────────────────────────────────────────────────────────────
 
 [tasks.resample]
-description = "Resample the 6in land cover to 3ft (pass a strip count to limit)"
-run = "uv run resample"
+description = "Resample the 6in land cover by majority (args: resolutions in ft, default 3; --strips N to limit)"
+run = "uv run resample.py"
 
 [tasks.clear]
 description = "Delete everything in out/"
@@ -23,6 +23,6 @@ run = ["oxfmt", "ruff format"]
 # ─── Release ─────────────────────────────────────────────────────────────────
 
 [tasks.release]
-description = "Tag HEAD and push the tag; the Release workflow publishes out/nyc_landcover_2017_3ft.tif"
-usage = 'arg "[tag]" help="Release tag (default: vYYYY.MM.DD)"'
+description = "Set README citation version to the tag (commit), tag HEAD, push, and upload out/*.tif as GitHub release assets"
+usage = 'arg "[tag]" help="Release tag (default: vYYYY.MM.DD, with .1, .2, … appended if taken)"'
 run = 'scripts/release.sh ${usage_tag:-}'
