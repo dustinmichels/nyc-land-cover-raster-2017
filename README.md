@@ -5,16 +5,16 @@ https://data.cityofnewyork.us/Environment/Land-Cover-Raster-Data-2017-6in-Resolu
 
 ## Source vs. output
 
-|                | Source (`Land_Cover.zip`)                          | Output (`nyc_landcover_2017_3ft.tif`) |
-| -------------- | -------------------------------------------------- | ------------------------------------- |
-| Format         | Erdas Imagine (`.img` + `.ige` + `.rrd` sidecars)  | GeoTIFF                               |
-| Resolution     | 0.5 ft (6 in)                                      | 3 ft                                  |
-| Size (pixels)  | 310,844 × 314,414 (~98 billion)                    | 51,808 × 52,403 (~2.7 billion)        |
-| Size on disk   | 1.27 GB zipped, ~130 GB unzipped                   | ~79 MB                                |
-| Layout         | 64 × 64 blocks, uncompressed (the zip deflates the whole file) | 512 × 512 tiles, deflate-compressed per tile |
-| Overviews      | 11 levels in `.rrd` (nearest-neighbor, 1 ft–~1024 ft) | none                               |
-| CRS            | EPSG:2263 (NY State Plane Long Island, US ft)      | same                                  |
-| Data type      | `uint8`, nodata = 0                                | same                                  |
+|               | Source (`Land_Cover.zip`)                                      | Output (`nyc_landcover_2017_3ft.tif`)        |
+| ------------- | -------------------------------------------------------------- | -------------------------------------------- |
+| Format        | Erdas Imagine (`.img` + `.ige` + `.rrd` sidecars)              | GeoTIFF                                      |
+| Resolution    | 0.5 ft (6 in)                                                  | 3 ft                                         |
+| Size (pixels) | 310,844 × 314,414 (~98 billion)                                | 51,808 × 52,403 (~2.7 billion)               |
+| Size on disk  | 1.27 GB zipped, ~130 GB unzipped                               | ~79 MB                                       |
+| Layout        | 64 × 64 blocks, uncompressed (the zip deflates the whole file) | 512 × 512 tiles, deflate-compressed per tile |
+| Overviews     | 11 levels in `.rrd` (nearest-neighbor, 1 ft–~1024 ft)          | none                                         |
+| CRS           | EPSG:2263 (NY State Plane Long Island, US ft)                  | same                                         |
+| Data type     | `uint8`, nodata = 0                                            | same                                         |
 
 The source `.img` file is only a 9.6 KB header; the pixels live in
 `NYC_2017_LiDAR_LandCover.ige` (~98 GB) and the prebuilt pyramids in
@@ -23,23 +23,24 @@ self-contained file that opens quickly in QGIS, rasterio, etc.
 
 Class values are the same in both:
 
-| Value | Class              |
-| ----- | ------------------ |
-| 0     | nodata             |
-| 1     | Tree Canopy        |
-| 2     | Grass/Shrubs       |
-| 3     | Bare Soil          |
-| 4     | Water              |
-| 5     | Buildings          |
-| 6     | Roads              |
-| 7     | Other Impervious   |
-| 8     | Railroads          |
+| Value | Class            |
+| ----- | ---------------- |
+| 0     | nodata           |
+| 1     | Tree Canopy      |
+| 2     | Grass/Shrubs     |
+| 3     | Bare Soil        |
+| 4     | Water            |
+| 5     | Buildings        |
+| 6     | Roads            |
+| 7     | Other Impervious |
+| 8     | Railroads        |
 
 ## How `resample.py` works
 
 ```sh
-uv run resample.py        # full run, writes out/nyc_landcover_2017_3ft.tif
-uv run resample.py 10     # only the first 10 strips, for testing
+mise run resample         # full run, writes out/nyc_landcover_2017_3ft.tif
+mise run resample 10      # only the first 10 strips, for testing
+mise run clear            # delete everything in out/
 ```
 
 1. **Reads straight from the zip.** GDAL's `/vsizip/` path opens the `.img`
@@ -49,12 +50,17 @@ uv run resample.py 10     # only the first 10 strips, for testing
    top-to-bottom is cheap. The script reads full-width strips of 192 rows —
    a multiple of both the source block height (64) and the resampling
    factor (6), so no strip ever splits a source block or an output pixel.
-3. **Majority resampling (6 × 6 → 1).** Each 6 × 6 block of 6-inch pixels
-   becomes one 3 ft pixel holding the most common class in that block.
-   Nodata pixels are ignored in the vote; a block that is entirely nodata
-   stays nodata, and ties go to the lower class number. Ragged right/bottom
-   edges are padded with nodata to a multiple of 6.
-4. **Writes a tiled GeoTIFF.** The output copies the source CRS and dtype,
+3. **Prefetches the next strip.** A background thread reads strip _i + 1_
+   while strip _i_ is being reduced, so decompression and compute overlap.
+4. **Majority resampling (6 × 6 → 1), across all cores.** Each 6 × 6 block of
+   6-inch pixels becomes one 3 ft pixel holding the most common class in that
+   block. Nodata pixels are ignored in the vote; a block that is entirely
+   nodata stays nodata, and ties go to the lower class number. Ragged
+   right/bottom edges are padded with nodata to a multiple of 6. Each strip is
+   split into one column chunk per CPU and reduced in parallel threads; the 8
+   class counts are packed into one `uint64` per block (6 bits each), so a
+   single vectorized sum counts every class at once.
+5. **Writes a tiled GeoTIFF.** The output copies the source CRS and dtype,
    scales the geotransform by 6, and writes 512 × 512 deflate-compressed
    tiles (BigTIFF only if needed).
 
@@ -70,5 +76,8 @@ mise run release           # tag defaults to vYYYY.MM.DD
 mise run release v1.0.0    # explicit tag
 ```
 
-Uploads `out/nyc_landcover_2017_3ft.tif` to a GitHub release via `gh`. If the
-tag already has a release, the asset is replaced.
+Creates an annotated tag on `HEAD` and pushes it. The tag push triggers
+`.github/workflows/release.yml`, which uploads the committed
+`out/nyc_landcover_2017_3ft.tif` to a GitHub release for that tag (replacing
+the asset if the release already exists). The task refuses to run if the file
+is uncommitted or modified.

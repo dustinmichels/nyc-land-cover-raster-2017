@@ -8,12 +8,21 @@ thread while the current one is reduced across all cores.
 
 import os
 import sys
-import time
 from concurrent.futures import ThreadPoolExecutor
 
 import numpy as np
 import rasterio
 from rasterio.windows import Window
+from rich.progress import (
+    BarColumn,
+    DownloadColumn,
+    Progress,
+    TaskProgressColumn,
+    TextColumn,
+    TimeElapsedColumn,
+    TimeRemainingColumn,
+    TransferSpeedColumn,
+)
 
 SRC = "/vsizip/Land_Cover.zip/Land_Cover/NYC_2017_LiDAR_LandCover.img"
 DST = "out/nyc_landcover_2017_3ft.tif"
@@ -48,8 +57,8 @@ def majority_parallel(a: np.ndarray, pool: ThreadPoolExecutor, n: int) -> np.nda
     return np.hstack(list(parts))
 
 
-
 def main(max_strips: int | None = None) -> None:
+    os.makedirs(os.path.dirname(DST), exist_ok=True)
     with rasterio.open(SRC) as src:
         out_w = -(-src.width // F)
         out_h = -(-src.height // F)
@@ -68,22 +77,38 @@ def main(max_strips: int | None = None) -> None:
         if max_strips:
             n_strips = min(n_strips, max_strips)
 
-        t0 = time.time()
         ncpu = os.cpu_count() or 1
+        # uint8 source: 1 byte per pixel, so progress is in uncompressed source bytes
+        total_bytes = min(n_strips * STRIP, src.height) * src.width
 
         def read(i: int) -> np.ndarray:
             row = i * STRIP
             rows = min(STRIP, src.height - row)
             # pad ragged right/bottom edges to a multiple of F
             pad = np.full((-(-rows // F) * F, out_w * F), NODATA, np.uint8)
-            src.read(1, window=Window(0, row, src.width, rows), out=pad[:rows, : src.width])
+            src.read(
+                1, window=Window(0, row, src.width, rows), out=pad[:rows, : src.width]
+            )
             return pad
+
+        progress = Progress(
+            BarColumn(bar_width=30),
+            TaskProgressColumn(),
+            TextColumn("strip {task.fields[strip]}/" + str(n_strips)),
+            DownloadColumn(),
+            TransferSpeedColumn(),
+            TimeElapsedColumn(),
+            TextColumn("eta"),
+            TimeRemainingColumn(),
+        )
 
         with (
             rasterio.open(DST, "w", **profile) as dst,
             ThreadPoolExecutor(1) as reader,
             ThreadPoolExecutor(ncpu) as pool,
+            progress,
         ):
+            task = progress.add_task("resample", total=total_bytes, strip=0)
             nxt = reader.submit(read, 0)
             for i in range(n_strips):
                 data = nxt.result()
@@ -91,16 +116,14 @@ def main(max_strips: int | None = None) -> None:
                     nxt = reader.submit(read, i + 1)
                 out = majority_parallel(data, pool, ncpu)
                 dst.write(out, 1, window=Window(0, i * STRIP // F, out_w, out.shape[0]))
+                rows = min(STRIP, src.height - i * STRIP)
+                progress.update(task, advance=rows * src.width, strip=i + 1)
+        progress.console.print(f"wrote {DST}")
 
-                el = time.time() - t0
-                eta = el / (i + 1) * (n_strips - i - 1)
-                print(
-                    f"\r{i + 1}/{n_strips} strips  {el / 60:.1f} min elapsed  ETA {eta / 60:.1f} min",
-                    end="",
-                    flush=True,
-                )
-        print(f"\nwrote {DST}")
+
+def cli() -> None:
+    main(int(sys.argv[1]) if len(sys.argv) > 1 else None)
 
 
 if __name__ == "__main__":
-    main(int(sys.argv[1]) if len(sys.argv) > 1 else None)
+    cli()

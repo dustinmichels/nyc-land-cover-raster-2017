@@ -1,0 +1,30 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Publish GeoTIFF
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+          FILE: out/nyc_landcover_2017_3ft.tif
+        run: |
+          [[ -f $FILE ]] || { echo "::error::$FILE is not committed at $TAG"; exit 1; }
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "Release $TAG exists; replacing asset"
+            gh release upload "$TAG" "$FILE" --clobber
+          else
+            gh release create "$TAG" "$FILE" \
+              --title "NYC Land Cover 2017, 3 ft ($TAG)" \
+              --notes "Majority-resampled (6x6) 3 ft GeoTIFF of the NYC 2017 6-inch land cover raster. EPSG:2263, uint8, nodata=0. See README for class values."
+          fi
