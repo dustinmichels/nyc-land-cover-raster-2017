@@ -2,11 +2,14 @@
 
 Reads full-resolution strips sequentially (the zip is one deflate stream, so
 sequential access is fast and random access is slow) and takes the most common
-non-nodata class in each 6x6 block.
+non-nodata class in each 6x6 block. The next strip is read in a background
+thread while the current one is reduced across all cores.
 """
 
+import os
 import sys
 import time
+from concurrent.futures import ThreadPoolExecutor
 
 import numpy as np
 import rasterio
@@ -18,18 +21,32 @@ F = 6  # 0.5 ft -> 3 ft
 STRIP = 192  # lcm(6, 64 block height): aligned to both source blocks and output pixels
 NODATA = 0
 NCLASS = 9  # values 0..8
+BITS = 6  # per-class count field; F*F = 36 < 2**6
+
+# Class c (1..8) -> 1 << BITS*(c-1); NODATA and anything else -> 0. Summing these
+# over a block yields all 8 class counts packed into one uint64 in a single pass.
+ONEHOT = np.zeros(256, np.uint64)
+ONEHOT[1:NCLASS] = np.uint64(1) << (BITS * np.arange(NCLASS - 1, dtype=np.uint64))
+SHIFTS = (BITS * np.arange(NCLASS - 1, dtype=np.uint64))[:, None, None]
 
 
 def majority(a: np.ndarray) -> np.ndarray:
     """Majority of each FxF block, ignoring NODATA; ties go to the lower class."""
     h, w = a.shape
-    blocks = a.reshape(h // F, F, w // F, F)
-    counts = np.stack(
-        [(blocks == c).sum(axis=(1, 3), dtype=np.uint8) for c in range(1, NCLASS)]
-    )
+    packed = ONEHOT[a].reshape(h, w // F, F).sum(axis=2)
+    packed = packed.reshape(h // F, F, w // F).sum(axis=1)
+    counts = ((packed >> SHIFTS) & np.uint64(2**BITS - 1)).astype(np.uint8)
     out = counts.argmax(axis=0).astype(np.uint8) + 1
-    out[counts.max(axis=0) == 0] = NODATA
+    out[packed == 0] = NODATA
     return out
+
+
+def majority_parallel(a: np.ndarray, pool: ThreadPoolExecutor, n: int) -> np.ndarray:
+    """majority() over n column chunks (multiples of F) in parallel; numpy drops the GIL."""
+    edges = np.linspace(0, a.shape[1] // F, n + 1).astype(int) * F
+    parts = pool.map(lambda lr: majority(a[:, lr[0] : lr[1]]), zip(edges, edges[1:]))
+    return np.hstack(list(parts))
+
 
 
 def main(max_strips: int | None = None) -> None:
@@ -52,16 +69,28 @@ def main(max_strips: int | None = None) -> None:
             n_strips = min(n_strips, max_strips)
 
         t0 = time.time()
-        with rasterio.open(DST, "w", **profile) as dst:
+        ncpu = os.cpu_count() or 1
+
+        def read(i: int) -> np.ndarray:
+            row = i * STRIP
+            rows = min(STRIP, src.height - row)
+            # pad ragged right/bottom edges to a multiple of F
+            pad = np.full((-(-rows // F) * F, out_w * F), NODATA, np.uint8)
+            src.read(1, window=Window(0, row, src.width, rows), out=pad[:rows, : src.width])
+            return pad
+
+        with (
+            rasterio.open(DST, "w", **profile) as dst,
+            ThreadPoolExecutor(1) as reader,
+            ThreadPoolExecutor(ncpu) as pool,
+        ):
+            nxt = reader.submit(read, 0)
             for i in range(n_strips):
-                row = i * STRIP
-                rows = min(STRIP, src.height - row)
-                data = src.read(1, window=Window(0, row, src.width, rows))
-                # pad ragged right/bottom edges to a multiple of F
-                pad = np.full((-(-rows // F) * F, out_w * F), NODATA, np.uint8)
-                pad[:rows, : src.width] = data
-                out = majority(pad)
-                dst.write(out, 1, window=Window(0, row // F, out_w, out.shape[0]))
+                data = nxt.result()
+                if i + 1 < n_strips:
+                    nxt = reader.submit(read, i + 1)
+                out = majority_parallel(data, pool, ncpu)
+                dst.write(out, 1, window=Window(0, i * STRIP // F, out_w, out.shape[0]))
 
                 el = time.time() - t0
                 eta = el / (i + 1) * (n_strips - i - 1)
