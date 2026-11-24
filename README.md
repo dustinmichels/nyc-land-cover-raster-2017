@@ -84,13 +84,21 @@ mise run release          # tag vYYYY.MM.DD, auto-bumped to vYYYY.MM.DD.1, .2, �
 mise run release v1.0.0   # explicit tag
 ```
 
-Rasters are never committed (`out/` is gitignored); they ship only as GitHub release assets (up to 2 GB each). Without an explicit tag, the task fetches tags from `origin` and uses today's `vYYYY.MM.DD`, appending `.1`, `.2`, … if that tag already exists. It sets `version` in the citation below to the tag, commits that change, creates an annotated tag on the new `HEAD`, pushes the branch and tag, then runs `gh release create` with every `out/nyc_landcover_2017_*ft.tif`. If the README can't be updated, it prints a note and releases anyway (tag only). It refuses to run if the working tree is dirty, an explicit tag already exists, `out/` has no rasters, or `gh` is missing or logged out.
+Rasters are never committed (`out/` is gitignored); they ship only as GitHub release assets (up to 2 GB each). Without an explicit tag, the task fetches tags from `origin` and uses today's `vYYYY.MM.DD`, appending `.1`, `.2`, … if that tag already exists. It sets the version in both citations below (Chicago and BibTeX) to the tag, commits that change, creates an annotated tag on the new `HEAD`, pushes the branch and tag, then runs `gh release create` with every `out/nyc_landcover_2017_*ft.tif`. If the README can't be updated, it prints a note and releases anyway (tag only). It refuses to run if the working tree is dirty, an explicit tag already exists, `out/` has no rasters, or `gh` is missing or logged out.
 
 It uploads whatever is in `out/`, so clear out partial `--strips` test outputs first.
 
 ## Citation
 
-If you use this output, please cite it and the source dataset:
+If you use this output, please cite it and the source dataset.
+
+Chicago (bibliography):
+
+> Michels, Dustin. _NYC Land Cover Raster 2017: Majority-Resampled GeoTIFFs of the 6 in NYC Land Cover Dataset_. Version v2026.11.24.1. GitHub, 2026. https://github.com/dustinmichels/nyc-land-cover-raster-2017.
+>
+> NYC Office of Technology and Innovation (OTI). _Land Cover Raster Data (2017) – 6in Resolution_. Dataset he6d-2qns. NYC Open Data, 2018. https://data.cityofnewyork.us/Environment/Land-Cover-Raster-Data-2017-6in-Resolution/he6d-2qns.
+
+BibTeX:
 
 ```bibtex
 @misc{michels2026nyclandcover,

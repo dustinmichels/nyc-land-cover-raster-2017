@@ -31,7 +31,8 @@ fi
 echo "Will publish to $tag:"
 ls -lh "${files[@]}" | awk '{print "  " $5 "\t" $NF}'
 
-# Rewrite the `version = {…}` line of the README citation to $tag and commit it.
+# Rewrite the `version = {…}` line of the README BibTeX citation and the
+# `Version … GitHub,` text of the Chicago citation to $tag, then commit.
 # Never aborts the release: returns non-zero with a reason on stderr instead.
 readme=README.md
 committed=
@@ -40,7 +41,7 @@ update_readme() {
   local esc
   grep -Eq "$pat" "$readme" || { echo "no 'version = {…}' line found" >&2; return 1; }
   esc=$(printf '%s' "$tag" | sed 's/[&|\\]/\\&/g')
-  sed -E "s|$pat|\\1$esc\\2|" "$readme" >"$readme.tmp" && mv "$readme.tmp" "$readme" \
+  sed -E -e "s|$pat|\\1$esc\\2|" -e "s|(Version )[^ ]+(\\. GitHub,)|\\1$esc\\2|" "$readme" >"$readme.tmp" && mv "$readme.tmp" "$readme" \
     || { rm -f "$readme.tmp"; echo "rewrite failed" >&2; return 1; }
   if git diff --quiet -- "$readme"; then
     echo "note: $readme version already $tag"
