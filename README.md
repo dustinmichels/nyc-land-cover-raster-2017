@@ -79,7 +79,7 @@ mise run clear                   # delete everything in out/
 ## Releasing
 
 ```sh
-mise run build            # asks to clear out/ (Enter = go, n = cancel), then full 2, 3, 4, 8, 16 ft run
+mise run build            # asks to clear out/ (Enter = go, n = cancel), then full run at the resolutions in mise.toml's build task
 mise run release          # tag next vMAJOR.MINOR: v1.1, v1.2, …
 mise run release v2.0     # explicit tag (e.g. a major bump)
 ```
