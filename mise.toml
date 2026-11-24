@@ -29,5 +29,5 @@ run = ["oxfmt", "ruff format"]
 
 [tasks.release]
 description = "Set README citation version to the tag (commit), tag HEAD, push, and upload out/*.tif as GitHub release assets"
-usage = 'arg "[tag]" help="Release tag (default: vYYYY.MM.DD, with .1, .2, … appended if taken)"'
+usage = 'arg "[tag]" help="Release tag (default: next vMAJOR.MINOR, e.g. v1.1, v1.2, …)"'
 run = 'scripts/release.sh ${usage_tag:-}'

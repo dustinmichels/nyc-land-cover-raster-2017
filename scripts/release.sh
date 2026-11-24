@@ -3,7 +3,7 @@
 # upload every out/nyc_landcover_2017_*ft.tif as a GitHub release asset.
 # The rasters live only in the release, never in git.
 # Usage: scripts/release.sh [tag]
-#   default tag: vYYYY.MM.DD, or vYYYY.MM.DD.N (N = 1, 2, …) if that day is taken
+#   default tag: next vMAJOR.MINOR (highest existing vX.Y with MINOR + 1; v1.1 if none)
 set -euo pipefail
 
 shopt -s nullglob
@@ -20,12 +20,9 @@ if [[ -n ${1:-} ]]; then
   git rev-parse -q --verify "refs/tags/$tag" >/dev/null \
     && { echo "error: tag $tag already exists; pass a different tag" >&2; exit 1; }
 else
-  base=v$(date +%Y.%m.%d)
-  tag=$base
-  n=0
-  while git rev-parse -q --verify "refs/tags/$tag" >/dev/null; do
-    tag=$base.$((++n))
-  done
+  last=$(git tag -l 'v*' | { grep -E '^v[0-9]+\.[0-9]+$' || true; } | sort -t. -k1.2,1n -k2,2n | tail -1)
+  last=${last:-v1.0}
+  tag=${last%.*}.$((${last##*.} + 1))
 fi
 
 echo "Will publish to $tag:"
